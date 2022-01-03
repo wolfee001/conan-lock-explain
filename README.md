@@ -13,6 +13,49 @@ does not changes, since the packed software version remains the same and only
 the recipe changes. However it may occure some changes in the recipe, that are
 incompatible with older versions of Conan.
 
+## Problem with unlocked dependencies
+
+The problem with the unlocked software versions are obvious: if you always
+download the master branch of a given library, you can easily find yourself in
+a situation where you experience a new bug without touching the codebase, or
+your codebase couldn't even build (if major change happens in the library and
+the interface broke). This is handled by the package version itself
+(boost/1.72.0), so it's a safe place.
+
+But with the continuous development of Conan itself you can experience the
+issue, where you didn't touch anything and the dependencies couldn't get
+installed.
+
+I've talked about the recompilation of conan packages in the intro, and you have
+to note the fact: if no other version of the package set but the library
+version, conan will install the given version with the latest recipe. This may
+not be compatible with your conan version, and the dependency installation
+fails.
+
+Imagine the following situation: You have a build pipeline that uses a docker
+image, that has 1.32.1 conan version in it. Everything works fine, but one day
+a PR build fails with the error of conan unable to install boost/1.72.0. You
+didn't change anything in the dependencies, but it's not working anymore. And
+the cherry on top: it works on your local machine!
+
+That's because you have a boost installed on your local machine so it doesn't
+have to be reinstalled with every build. But the build pipeline reinstalls the
+packeges for every build, and if a new recipe version come that starts with the
+following line
+```
+required_conan_version = ">=1.33.0"
+```
+it can not be installed with the 1.32.1 Conan.
+
+Since no other versions set in our conan system but the boost version itself,
+Conan will install the latest recipe version every time it has to be installed,
+and in this situation it causes failure.
+
+This issue can be fixed with locking the recipe version as well.
+
+> This case-study is so accurate, I faced this problem at a company I worked
+    for :)
+
 ## Revision locking
 
 The Conan recipes has a unique hash, that is unique for the given state of the
